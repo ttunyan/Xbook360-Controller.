@@ -1,0 +1,141 @@
+/*********************************************************************
+ * DF Pong Controller
+ * 
+ * This program implements a Bluetooth Low Energy controller for Pong.
+ * It sends movement data to a central device running in the browser and
+ * provides audio feedback through a buzzer.
+ *
+ * Game Link : https://digitalfuturesocadu.github.io/df-pong/
+ * 
+ * Movement Values:
+ * 0 = No movement / Neutral position
+ * 1 = UP movement (paddle moves up)
+ * 2 = DOWN movement (paddle moves down)
+ * 3 = Handshake signal (used for initial connection verification)
+ * 
+ * Key Functions:
+ * - handleInput(): Process the inputs to generate the states
+ * - sendMovement(): Sends movement data over BLE (0-3)
+ * - updateBLE(): Handles BLE connection management and updates
+ * - updateBuzzer(): Provides different buzzer patterns for different movements
+ * 
+ * Key Variables:
+ * - currentMovement: Stores current movement state (0-2)
+ * - deviceName : GIVE YOUR DEVICE AN APPROPRIATE NAME
+ * - LED_PIN : It is important to see the status of the arduino through the LED. 
+      if you can see the built-in add an external one and update the pin it is connected to
+ * 
+
+ *********************************************************************/
+
+
+
+#include <ArduinoBLE.h>
+#include "ble_functions.h"
+#include "buzzer_functions.h"
+//Since code is split over multiple files, we have to include them here
+
+
+// ============================================
+// IMPORTANT: SET YOUR DEVICE NUMBER HERE (1-25)
+// ============================================
+const int DEVICE_NUMBER = 20;  // ← CHANGE THIS TO YOUR ASSIGNED NUMBER!
+// ============================================
+
+// Device name is generated from device number
+String deviceNameStr = "DFPONG-" + String(DEVICE_NUMBER);
+const char* deviceName = deviceNameStr.c_str();
+
+// Pin definitions buzzer/LED
+const int BUZZER_PIN = 11;       // Pin for haptic feedback buzzer
+const int LED_PIN = LED_BUILTIN; // Status LED pin
+
+// Movement state tracking
+int currentMovement = 0;         // Current movement value (0=none, 1=up, 2=down, 3=handshake)
+
+
+
+
+void setup() 
+{
+  
+  Serial.begin(9600);
+  // DO NOT use while(!Serial) - it blocks startup without Serial Monitor
+  // Small delay allows Serial Monitor to catch output if connected
+  delay(1000);
+  
+  Serial.println("=== DF Pong Controller Starting ===");
+  
+  // Configure LED for connection status indication
+  pinMode(LED_PIN, OUTPUT);
+  
+  // Initialize Bluetooth Low Energy with device name, number, and status LED
+  setupBLE(deviceName, DEVICE_NUMBER, LED_PIN);
+  
+  // Initialize buzzer for feedback
+  setupBuzzer(BUZZER_PIN);
+}
+
+void loop() 
+{
+  // Update BLE connection status and handle incoming data
+  updateBLE();
+  
+  //read the inputs te determine the current state
+  //results in changing the value of currentMovement
+  handleInput();
+
+  //send the movement state to P5  
+  sendMovement(currentMovement);
+
+  //make the correct noise
+  updateBuzzer(currentMovement);
+  
+  
+}
+
+void handleInput() 
+{
+  int leftSensorValue = analogRead(A0);
+  int rightSensorValue = analogRead(A1);
+
+  int leftThreshold  = 300;
+  int rightThreshold = 700;
+
+  bool leftPressed  = leftSensorValue  > leftThreshold;
+  bool rightPressed = rightSensorValue > rightThreshold;
+
+  // --- NEW LOGIC ---
+  
+  // 1. Nothing pressed
+  if (!leftPressed && !rightPressed) {
+    currentMovement = 0;
+  }
+
+  // 2. Only left pressed
+  else if (leftPressed && !rightPressed) {
+    currentMovement = 1; // move LEFT/UP
+  }
+
+  // 3. Only right pressed
+  else if (!leftPressed && rightPressed) {
+    currentMovement = 2; // move RIGHT/DOWN
+  }
+
+  // 4. Both pressed → choose stronger
+  else {
+    if (leftSensorValue > rightSensorValue) {
+      currentMovement = 1;
+    } else {
+      currentMovement = 2;
+    }
+  }
+
+  // Debug
+  Serial.print("Left: "); Serial.print(leftSensorValue);
+  Serial.print(" | Right: "); Serial.print(rightSensorValue);
+  Serial.print(" | Movement: "); Serial.println(currentMovement);
+}
+
+
+
