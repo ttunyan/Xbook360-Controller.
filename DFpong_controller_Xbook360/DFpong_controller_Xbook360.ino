@@ -96,46 +96,48 @@ void loop()
 
 void handleInput() 
 {
-  int leftSensorValue = analogRead(A0);
-  int rightSensorValue = analogRead(A1);
+  // This part reads the analog values from the pressure sensors on both pages
+  int leftSensorValue = analogRead(A0);   // Left page sensor is connected to A0
+  int rightSensorValue = analogRead(A1);  // Right page sensor is connected to A1
 
+  // This is to set the threshold values for each page. It account for the natural pressure when the book is open
+  // Left page has less natural pressure from opening the book, so the threshold is lower
   int leftThreshold  = 300;
+  // Right page naturally bends downward more and carries extra pressure, so the threshold is higher
   int rightThreshold = 700;
 
+  // This determines whether each page is being actively pressed
   bool leftPressed  = leftSensorValue  > leftThreshold;
   bool rightPressed = rightSensorValue > rightThreshold;
 
-  // --- NEW LOGIC ---
-  
-  // 1. Nothing pressed
+  // --- Input logic to decide paddle movement ---
+
+  // Instance 1: Neither page is pressed above its threshold - paddle stays still
   if (!leftPressed && !rightPressed) {
     currentMovement = 0;
   }
 
-  // 2. Only left pressed
+  // Instance 2: Only the left page is pressed - move paddle LEFT/UP
   else if (leftPressed && !rightPressed) {
-    currentMovement = 1; // move LEFT/UP
+    currentMovement = 1;
   }
 
-  // 3. Only right pressed
+  // Instnce 3: Only the right page is pressed - move paddle RIGHT/DOWN
   else if (!leftPressed && rightPressed) {
-    currentMovement = 2; // move RIGHT/DOWN
+    currentMovement = 2;
   }
 
-  // 4. Both pressed → choose stronger
+  // Instance 4: Both pages are pressed → move in the direction of the stronger pressure
   else {
     if (leftSensorValue > rightSensorValue) {
-      currentMovement = 1;
+      currentMovement = 1; // Left page pressure is stronger → move LEFT/UP
     } else {
-      currentMovement = 2;
+      currentMovement = 2; // Right page pressure is stronger → move RIGHT/DOWN
     }
   }
 
-  // Debug
+  // Debugging output to monitor sensor readings and current movement
   Serial.print("Left: "); Serial.print(leftSensorValue);
   Serial.print(" | Right: "); Serial.print(rightSensorValue);
   Serial.print(" | Movement: "); Serial.println(currentMovement);
 }
-
-
-
